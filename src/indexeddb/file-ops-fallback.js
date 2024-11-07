@@ -16,7 +16,7 @@ async function openDb(name) {
       if (!db.objectStoreNames.contains('data')) {
         db.createObjectStore('data');
       }
-    }, 
+    },
     terminated: () => {},
     blocked: (_currentVersion, _blockedVersion, event) => {
       console.error('blocked', event);
@@ -25,43 +25,42 @@ async function openDb(name) {
 
   idb.onversionchange = () => {
     idb.close();
-  }
+  };
 
   idb.onerror = (e) => {
     console.error('error', e);
-  }
+  };
 
   return idb;
 }
 
 const CRYPTO_ALGORITHM = { name: 'AES-GCM', length: 256 };
 const IV_LENGTH = 12;
-const ENCRYPTION_MARKER = new Uint8Array([0xDE, 0xAD, 0xBE, 0xEF]); // Marker to identify encrypted data
+const ENCRYPTION_MARKER = new Uint8Array([0xde, 0xad, 0xbe, 0xef]); // Marker to identify encrypted data
 
 function generateKey(password) {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(password);
 
-  return crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits', 'deriveKey']
-  ).then(keyMaterial =>
-    crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt: keyData,
-        iterations: 100000,
-        hash: 'SHA-256'
-      },
-      keyMaterial,
-      CRYPTO_ALGORITHM,
-      false,
-      ['encrypt', 'decrypt']
-    )
-  );
+  return crypto.subtle
+    .importKey('raw', keyData, { name: 'PBKDF2' }, false, [
+      'deriveBits',
+      'deriveKey',
+    ])
+    .then((keyMaterial) =>
+      crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: keyData,
+          iterations: 100000,
+          hash: 'SHA-256',
+        },
+        keyMaterial,
+        CRYPTO_ALGORITHM,
+        false,
+        ['encrypt', 'decrypt']
+      )
+    );
 }
 
 function isEncrypted(data) {
@@ -80,10 +79,15 @@ async function encryptData(key, data) {
   );
 
   // Combine marker, IV, and encrypted data
-  const result = new Uint8Array(ENCRYPTION_MARKER.length + IV_LENGTH + encryptedData.byteLength);
+  const result = new Uint8Array(
+    ENCRYPTION_MARKER.length + IV_LENGTH + encryptedData.byteLength
+  );
   result.set(ENCRYPTION_MARKER, 0);
   result.set(iv, ENCRYPTION_MARKER.length);
-  result.set(new Uint8Array(encryptedData), ENCRYPTION_MARKER.length + IV_LENGTH);
+  result.set(
+    new Uint8Array(encryptedData),
+    ENCRYPTION_MARKER.length + IV_LENGTH
+  );
 
   return result.buffer;
 }
@@ -92,7 +96,10 @@ async function decryptData(key, encryptedBuffer) {
   if (!encryptedBuffer) return encryptedBuffer;
 
   const data = new Uint8Array(encryptedBuffer);
-  const iv = data.slice(ENCRYPTION_MARKER.length, ENCRYPTION_MARKER.length + IV_LENGTH);
+  const iv = data.slice(
+    ENCRYPTION_MARKER.length,
+    ENCRYPTION_MARKER.length + IV_LENGTH
+  );
   const encryptedContent = data.slice(ENCRYPTION_MARKER.length + IV_LENGTH);
 
   const result = await crypto.subtle.decrypt(
@@ -130,7 +137,10 @@ class Persistance {
     let store = trans.objectStore('data');
 
     // Get all data
-    let [allValues, allKeys] = await Promise.all([store.getAll(), store.getAllKeys()]);
+    let [allValues, allKeys] = await Promise.all([
+      store.getAll(),
+      store.getAllKeys(),
+    ]);
     let migrationWrites = [];
 
     // Process each value
@@ -144,18 +154,21 @@ class Persistance {
           const encryptedValue = await encryptData(this.cryptoKey, value);
           migrationWrites.push({ key, value: encryptedValue });
         } catch (err) {
-          console.error(`Failed to encrypt data for key ${key}: ${err.message}`);
+          console.error(
+            `Failed to encrypt data for key ${key}: ${err.message}`
+          );
         }
       }
     }
-
 
     trans = db.transaction('data', 'readwrite');
     store = trans.objectStore('data');
     // Write all encrypted values back to the database
     if (migrationWrites.length > 0) {
-      console.log(`Migrating ${migrationWrites.length} items to encrypted storage`);
-      const promises = migrationWrites.map(write => 
+      console.log(
+        `Migrating ${migrationWrites.length} items to encrypted storage`
+      );
+      const promises = migrationWrites.map((write) =>
         store.put(write.value, write.key)
       );
       await Promise.all([...promises, trans.done]);
@@ -205,7 +218,10 @@ class Persistance {
     let trans = db.transaction('data', 'readonly');
     let store = trans.objectStore('data');
 
-    let [allValues, allKeys] = await Promise.all([store.getAll(), store.getAllKeys()]);
+    let [allValues, allKeys] = await Promise.all([
+      store.getAll(),
+      store.getAllKeys(),
+    ]);
 
     let blocks = new Map();
 
@@ -234,19 +250,19 @@ class Persistance {
           if (write.value.size) {
             return {
               key: write.key,
-              value: write.value
-            }
+              value: write.value,
+            };
           }
           try {
             return {
               key: write.key,
-              value: await encryptData(this.cryptoKey, write.value)
+              value: await encryptData(this.cryptoKey, write.value),
             };
           } catch (err) {
             console.error('Failed to encrypt data: ' + err.message);
             return {
               key: write.key,
-              value: write.value
+              value: write.value,
             };
           }
         } else {
@@ -264,7 +280,9 @@ class Persistance {
 
     let req = await store.get(0);
 
-    const decryptReq = this.cryptoKey ? await decryptData(this.cryptoKey, req) : req;
+    const decryptReq = this.cryptoKey
+      ? await decryptData(this.cryptoKey, req)
+      : req;
 
     if (hasLocked) {
       if (!isSafeToWrite(decryptReq, cachedFirstBlock)) {
@@ -279,7 +297,9 @@ class Persistance {
     // Flush all the writes
     trans = db.transaction('data', 'readwrite');
     store = trans.store;
-    const promises = processedWrites.map((processedWrite) => store.put(processedWrite.value, processedWrite.key));
+    const promises = processedWrites.map((processedWrite) =>
+      store.put(processedWrite.value, processedWrite.key)
+    );
 
     await Promise.all([...promises, trans.done]);
   }
@@ -296,7 +316,11 @@ export class FileOpsFallback {
     this.transferBlockOwnership = false;
     const password = passwordMap?.get(this.filename) ?? null;
 
-    this.persistance = new Persistance(this.dbName, onFallbackFailure, password);
+    this.persistance = new Persistance(
+      this.dbName,
+      onFallbackFailure,
+      password
+    );
   }
 
   async readIfFallback() {
@@ -311,7 +335,7 @@ export class FileOpsFallback {
     // locally (we can't see any writes from anybody else) and we just
     // want to track the lock so we know when it downgrades from write
     // to read
-    this.cachedFirstBlock = this.blocks.get(0); 
+    this.cachedFirstBlock = this.blocks.get(0);
     this.lockType = lockType;
     return true;
   }

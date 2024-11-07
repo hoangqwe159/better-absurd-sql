@@ -17,7 +17,11 @@ export default class IndexedDBBackend {
       // SharedArrayBuffer is not supported. Use the fallback methods
       // which provide a somewhat working version, but doesn't
       // support mutations across connections (tabs)
-      ops = new FileOpsFallback(filename, this.onFallbackFailure, this.passwordMap);
+      ops = new FileOpsFallback(
+        filename,
+        this.onFallbackFailure,
+        this.passwordMap
+      );
     }
 
     let file = new File(filename, ops);
