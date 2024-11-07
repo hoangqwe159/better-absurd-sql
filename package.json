@@ -45,6 +45,7 @@
     "src/**/*"
   ],
   "dependencies": {
+    "idb": "^8.0.0",
     "safari-14-idb-fix": "^1.0.4"
   }
 }

@@ -3,8 +3,9 @@ import { FileOps } from './file-ops';
 import { FileOpsFallback } from './file-ops-fallback';
 
 export default class IndexedDBBackend {
-  constructor(onFallbackFailure) {
+  constructor(onFallbackFailure, passwordMap) {
     this.onFallbackFailure = onFallbackFailure;
+    this.passwordMap = passwordMap;
   }
 
   createFile(filename) {
@@ -16,7 +17,7 @@ export default class IndexedDBBackend {
       // SharedArrayBuffer is not supported. Use the fallback methods
       // which provide a somewhat working version, but doesn't
       // support mutations across connections (tabs)
-      ops = new FileOpsFallback(filename, this.onFallbackFailure);
+      ops = new FileOpsFallback(filename, this.onFallbackFailure, this.passwordMap);
     }
 
     let file = new File(filename, ops);

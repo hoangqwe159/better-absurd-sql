@@ -15,7 +15,7 @@ function isWorker() {
 }
 
 function makeStartWorkerFromMain(getModule) {
-  return (argBuffer, resultBuffer, parentWorker) => {
+  return (argBuffer, resultBuffer, encryptionPassword, parentWorker) => {
     if (isWorker()) {
       throw new Error(
         '`startWorkerFromMain` should only be called from the main thread'
@@ -32,7 +32,7 @@ function makeStartWorkerFromMain(getModule) {
     getModule().then(({ default: BackendWorker }) => {
       let worker = new BackendWorker();
 
-      worker.postMessage({ type: 'init', buffers: [argBuffer, resultBuffer] });
+      worker.postMessage({ type: 'init', buffers: [argBuffer, resultBuffer], encryptionPassword });
 
       worker.addEventListener('message', (msg) => {
         // Forward any messages to the worker that's supposed
@@ -50,7 +50,7 @@ export function makeInitBackend(spawnEventName, getModule) {
     worker.addEventListener('message', (e) => {
       switch (e.data.type) {
         case spawnEventName:
-          startWorkerFromMain(e.data.argBuffer, e.data.resultBuffer, worker);
+          startWorkerFromMain(e.data.argBuffer, e.data.resultBuffer, e.data.encryptionPassword, worker);
           break;
       }
     });

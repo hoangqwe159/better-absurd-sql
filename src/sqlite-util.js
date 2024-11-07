@@ -27,7 +27,8 @@ export function isSafeToWrite(localData, diskData) {
     // the docs). At least one of these bytes change when sqlite3 writes
     // data. We can check this against our in-memory data to see if it's
     // safe to write (if something changes underneath us, it's not)
-    for (let i = 24; i < 40; i++) {
+    // 32 is length of encryption salt header
+    for (let i = 24 + 32; i < 40 + 32; i++) {
       if (localView[i] !== diskView[i]) {
         return false;
       }
